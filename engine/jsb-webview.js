@@ -98,7 +98,6 @@
             let cbs = this.__eventListeners;
             cbs.load = null;
             cbs.error = null;
-            iframe.destroy();
             this._iframe = null;
         }
     };

@@ -8,7 +8,6 @@ cc.js.mixin(proto, {
 
         this.setUseModel(false);
         this.ignoreWorldMatrix();
-        this.ignoreOpacityFlag();
     },
     update (comp, dt) {
         comp.node._updateWorldMatrix();
