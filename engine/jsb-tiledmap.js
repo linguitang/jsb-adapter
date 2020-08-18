@@ -36,7 +36,7 @@
         let result = _addUserNode.call(this, node);
         if (result) {
             let proxy = node._proxy;
-            proxy && proxy.disableVisit();
+            proxy && proxy.enableVisit(false);
         }
     };
 
@@ -45,9 +45,16 @@
         let result = _removeUserNode.call(this, node);
         if (result) {
             let proxy = node._proxy;
-            proxy && proxy.enableVisit();
+            proxy && proxy.enableVisit(true);
         }
-    }
+    };
+
+    // override _buildMaterial to upload hash value to native
+    let _buildMaterial = TiledLayer._buildMaterial;
+    TiledLayer._buildMaterial = function (tilesetIdx) {
+        let material = _buildMaterial.call(this, tilesetIdx);
+        if (material) material.getHash();
+    };
 
     // tiledmap buffer
     let TiledMapBuffer = cc.TiledMapBuffer.prototype;
@@ -65,6 +72,13 @@
         renderData.ia = {};
         renderData.nodesRenderList = [];
         this._dataList.push(renderData);
+    };
+
+    TiledMapRenderDataList.reset = function () {
+        this._offset = 0;
+        let assembler = this._nativeAssembler;
+        assembler._effect.length = 0;
+        assembler.reset();
     };
 
     TiledMapRenderDataList.setNativeAssembler = function (assembler) {
@@ -136,6 +150,12 @@
     cc.js.mixin(TiledMapAssembler, {
         _extendNative () {
             renderer.TiledMapAssembler.prototype.ctor.call(this);
+        },
+
+        // override _updateRenderData function avoid base class cover material
+        _updateRenderData () {
+            if (!this._renderComp || !this._renderComp.isValid) return;
+            this.updateRenderData(this._renderComp);
         },
 
         updateRenderData (comp) {

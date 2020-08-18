@@ -1,5 +1,5 @@
 
-let proto = cc.MotionStreak.__assembler__.prototype
+let proto = cc.MotionStreak.__assembler__.prototype;
 let _init = proto.init;
 let _update = proto.update;
 cc.js.mixin(proto, {
@@ -8,6 +8,7 @@ cc.js.mixin(proto, {
 
         this.setUseModel(false);
         this.ignoreWorldMatrix();
+        this.ignoreOpacityFlag();
     },
     update (comp, dt) {
         comp.node._updateWorldMatrix();
@@ -25,4 +26,4 @@ cc.js.mixin(proto, {
             iData[indiceOffset++] = i + 3;
         }
     }
-})
+});

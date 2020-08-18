@@ -32,6 +32,10 @@
     const KeyboardReturnType = EditBox.KeyboardReturnType;
     const InputMode = EditBox.InputMode;
     const InputFlag = EditBox.InputFlag;
+    const MAX_VALUE = 65535;
+
+    let worldMat = new cc.Mat4(),
+        cameraMat = new cc.Mat4();
 
     function getInputType (type) {
         switch (type) {
@@ -68,12 +72,12 @@
         return 'done';
     }
 
+    const BaseClass = EditBox._ImplClass;
     function JsbEditBoxImpl () {
-        this._delegate = null;
-        this._editing = false;
+        BaseClass.call(this);
     }
 
-    js.extend(JsbEditBoxImpl, EditBox._ImplClass);
+    js.extend(JsbEditBoxImpl, BaseClass);
     EditBox._ImplClass = JsbEditBoxImpl;
 
     Object.assign(JsbEditBoxImpl.prototype, {
@@ -85,17 +89,9 @@
             this._delegate = delegate;
         },
 
-        setFocus (value) {
-            if (value) {
-                this.beginEditing();
-            }
-            else {
-                this.endEditing();
-            }
-        },
-
-        isFocused () {
-            return this._editing;
+        _onResize () {
+            let { x, y, width, height } = this._getRect();
+            jsb.inputBox.updateRect(x, y, width, height);
         },
 
         beginEditing () {
@@ -103,7 +99,7 @@
             let delegate = this._delegate;
             let multiline = (delegate.inputMode === InputMode.ANY);
             let rect = this._getRect();
-
+            let maxLength = (delegate.maxLength < 0 ? MAX_VALUE : delegate.maxLength)
             let inputTypeString = getInputType(delegate.inputMode);
             if (delegate.inputFlag === InputFlag.PASSWORD) {
                 inputTypeString = 'password';
@@ -114,9 +110,6 @@
             }
 
             function onInput (res) {
-                if (res.value.length > delegate.maxLength) {
-                    res.value = res.value.slice(0, delegate.maxLength);
-                }
                 if (delegate._string !== res.value) {
                     delegate.editBoxTextChanged(res.value);
                 }
@@ -124,9 +117,6 @@
 
             function onComplete (res) {
                 self.endEditing();
-                jsb.inputBox.offConfirm(onConfirm);
-                jsb.inputBox.offInput(onInput);
-                jsb.inputBox.offComplete(onComplete);
             }
 
             jsb.inputBox.onInput(onInput);
@@ -138,7 +128,7 @@
             }
             jsb.inputBox.show({
                 defaultValue: delegate._string,
-                maxLength: delegate.maxLength,
+                maxLength: maxLength,
                 multiple: multiline,
                 confirmHold: false,
                 confirmType: getKeyboardReturnType(delegate.returnType),
@@ -150,43 +140,56 @@
             });
             this._editing = true;
             delegate.editBoxEditingDidBegan();
+            if (!cc.sys.isMobile) {
+                cc.view.on('canvas-resize', this._onResize, this);
+            }
         },
 
         endEditing () {
+            jsb.inputBox.offConfirm();
+            jsb.inputBox.offInput();
+            jsb.inputBox.offComplete();
             this._editing = false;
             if (!cc.sys.isMobile) {
                 this._delegate._showLabels();
             }
             jsb.inputBox.hide();
             this._delegate.editBoxEditingDidEnded();
+            if (!cc.sys.isMobile) {
+                cc.view.off('canvas-resize', this._onResize, this);
+            }
         },
 
         _getRect () {
             let node = this._delegate.node,
-                scaleX = cc.view._scaleX, scaleY = cc.view._scaleY;
+                viewScaleX = cc.view._scaleX, viewScaleY = cc.view._scaleY;
             let dpr = cc.view._devicePixelRatio;
+            node.getWorldMatrix(worldMat);
 
-            let math = cc.vmath;
-            let matrix = math.mat4.create();
-            node.getWorldMatrix(matrix);
+            let camera = cc.Camera.findCamera(node);
+            camera.getWorldToScreenMatrix2D(cameraMat);
+            cc.Mat4.multiply(cameraMat, cameraMat, worldMat);
+
             let contentSize = node._contentSize;
             let vec3 = cc.v3();
             vec3.x = -node._anchorPoint.x * contentSize.width;
             vec3.y = -node._anchorPoint.y * contentSize.height;
 
 
-            math.mat4.translate(matrix, matrix, vec3);
+            cc.Mat4.translate(cameraMat, cameraMat, vec3);
 
-            scaleX /= dpr;
-            scaleY /= dpr;
+            viewScaleX /= dpr;
+            viewScaleY /= dpr;
 
-            let finalScaleX = matrix.m[0] * scaleX;
-            let finaleScaleY = matrix.m[5] * scaleY;
+            let finalScaleX = cameraMat.m[0] * viewScaleX;
+            let finaleScaleY = cameraMat.m[5] * viewScaleY;
 
             let viewportRect = cc.view._viewportRect;
+            let offsetX = viewportRect.x / dpr,
+                offsetY = viewportRect.y / dpr;
             return {
-                x: matrix.m[12] * finalScaleX + viewportRect.x,
-                y: matrix.m[13] * finaleScaleY + viewportRect.y,
+                x: cameraMat.m[12] * viewScaleX + offsetX,
+                y: cameraMat.m[13] * viewScaleY + offsetY,
                 width: contentSize.width * finalScaleX,
                 height: contentSize.height * finaleScaleY
             };

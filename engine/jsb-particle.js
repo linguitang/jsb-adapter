@@ -249,19 +249,25 @@
 
     PSProto._onTextureLoaded = function () {
         this._simulator.updateUVs(this._renderSpriteFrame.uv);
+        this._syncAspect();
+        this._simulator.aspectRatio = this._aspectRatio || 1.0;
+        this._updateMaterial();
+        this.markForRender(true);
     };
 
     let _updateMaterial = PSProto._updateMaterial;
     PSProto._updateMaterial = function () {
         _updateMaterial.call(this);
         
-        let material = this.sharedMaterials[0];
+        let material = this._materials[0];
         material && this._simulator.setEffect(material.effect._nativeObj);
+        // upload hash value to native
+        material && material.getHash();
     };
 
-    let _applyFile = PSProto._applyFile;
-    PSProto._applyFile = function () {
-        _applyFile.call(this);
+    let _initWithDictionary = PSProto._initWithDictionary;
+    PSProto._initWithDictionary = function (content) {
+        _initWithDictionary.call(this, content);
         this._initProperties();
     };
 

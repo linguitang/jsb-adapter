@@ -7,10 +7,15 @@ proto.init = function (renderComp) {
     this.ignoreOpacityFlag();
 }
 
-let _genBuffer = proto.genBuffer;
 proto.genBuffer = function (graphics, cverts) {
-    let buffer = _genBuffer.call(this, graphics, cverts);
-    buffer.meshbuffer.setNativeAssembler(this);
+    let buffers = this.getBuffers(); 
+    let buffer = buffers[this._bufferOffset];
+    let meshbuffer = buffer.meshbuffer;
+
+    meshbuffer.requestStatic(cverts, cverts*3);
+    this._buffer = buffer;
+
+    meshbuffer.setNativeAssembler(this);
     return buffer;
 }
 
@@ -26,4 +31,12 @@ proto.fill = function (graphics) {
     _fill.call(this, graphics);
     let buffer = this._buffer;
     buffer.meshbuffer.used(buffer.vertexStart, buffer.indiceStart);
+}
+
+let _updateIADatas = proto.updateIADatas;
+proto.updateIADatas = function (iaIndex, meshIndex) {
+    _updateIADatas.call(this, iaIndex, meshIndex);
+    // Reset vertexStart and indiceStart when buffer is switched.
+    this._buffer.vertexStart = 0;
+    this._buffer.indiceStart = 0;
 }

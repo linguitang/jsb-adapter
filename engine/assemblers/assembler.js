@@ -31,6 +31,12 @@ let FLAG_VERTICES_OPACITY_CHANGED = 1 << 0;
 let FLAG_VERTICES_DIRTY = 1 << 1;
 
 let Assembler = {
+    _ctor () {
+        this._dirtyPtr = new Uint32Array(1);
+        this.setDirty(this._dirtyPtr);
+        this.initVertexFormat();
+    },
+
     destroy () {
         this._renderComp = null;
         this._effect = null;
@@ -51,27 +57,20 @@ let Assembler = {
     },
 
     init (renderComp) {
-        this._extendNative();
-
         this._effect = [];
-        this._dirtyPtr = new Uint32Array(1);
-        this.setDirty(this._dirtyPtr);
 
         originInit.call(this, renderComp);
-
-        this.initVertexFormat();
 
         if (renderComp.node && renderComp.node._proxy) {
             renderComp.node._proxy.setAssembler(this);
         }
     },
 
-
     _updateRenderData () {
         if (!this._renderComp || !this._renderComp.isValid) return;
         this.updateRenderData(this._renderComp);
 
-        let materials = this._renderComp.sharedMaterials;
+        let materials = this._renderComp._materials;
         for (let i = 0; i < materials.length; i++) {
             let m = materials[i];
             // TODO: find why material can be null
@@ -82,7 +81,7 @@ let Assembler = {
     },
 
     updateRenderData (comp) {
-        comp._assembler.updateMaterial(0, comp.sharedMaterials[0]);
+        comp._assembler.updateMaterial(0, comp._materials[0]);
     },
 
     updateMaterial (iaIndex, material) {
@@ -95,6 +94,14 @@ let Assembler = {
 
     updateColor(comp, color) {
         this._dirtyPtr[0] |= FLAG_VERTICES_OPACITY_CHANGED;
+    },
+
+    updateIADatas (iaIndex, meshIndex) {
+        // When the MeshBuffer is switched, it is necessary to synchronize the iaData of the native assembler.
+        this.updateMeshIndex(iaIndex, meshIndex);
+        let materials = this._renderComp.sharedMaterials; 
+        let material = materials[iaIndex] || materials[0];
+        this.updateMaterial(iaIndex, material);
     }
 };
 

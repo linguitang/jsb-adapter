@@ -23,8 +23,9 @@
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE.
  ****************************************************************************/
+const cacheManager = require('./jsb-cache-manager');
 
-cc.Audio = function (src) {
+let Audio = cc._Audio = function (src) {
     this.src = src;
     this.volume = 1;
     this.loop = false;
@@ -49,7 +50,7 @@ let handleVolume  = function (volume) {
     cc.audioEngine = audioEngine;
     audioEngine.setMaxWebAudioSize = function () { };
 
-    cc.Audio.State = audioEngine.AudioState;
+    Audio.State = audioEngine.AudioState;
 
     proto.play = function () {
         audioEngine.stop(this.id);
@@ -126,14 +127,10 @@ let handleVolume  = function (volume) {
             volume = 1;
         }
         let audioFilePath;
-        let md5Pipe = cc.loader.md5Pipe;
         if (typeof clip === 'string') {
             // backward compatibility since 1.10
             cc.warnID(8401, 'cc.audioEngine', 'cc.AudioClip', 'AudioClip', 'cc.AudioClip', 'audio');
             audioFilePath = clip;
-            if (md5Pipe) {
-                audioFilePath = md5Pipe.transformURL(audioFilePath);
-            }
         }
         else {
             if (clip.loaded) {
@@ -141,7 +138,7 @@ let handleVolume  = function (volume) {
             }
             else {
                 // audio delay loading
-                clip._nativeAsset = audioFilePath = (md5Pipe ? md5Pipe.transformURL(clip.nativeUrl) : clip.nativeUrl);
+                clip._nativeAsset = audioFilePath = cacheManager.getCache(clip.nativeUrl) || clip.nativeUrl;
                 clip.loaded  = true;
             }
         }
@@ -243,8 +240,8 @@ let handleVolume  = function (volume) {
 
     audioEngine._preload = audioEngine.preload;
     audioEngine.preload = function (filePath, callback) {
-        cc.warn('`cc.audioEngine.preload` is deprecated, use `cc.loader.loadRes(url, cc.AudioClip)` instead please.');
+        cc.warn('`cc.audioEngine.preload` is deprecated, use `cc.assetManager.loadRes(url, cc.AudioClip)` instead please.');
         audioEngine._preload(filePath, callback);
     };
 
-})(cc.Audio.prototype, jsb.AudioEngine);
+})(Audio.prototype, jsb.AudioEngine);
